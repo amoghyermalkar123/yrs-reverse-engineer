@@ -704,6 +704,7 @@ impl<'doc> TransactionMut<'doc> {
     /// Remote update integration requires that all to-be-integrated blocks must have their direct
     /// predecessors already in place. Out of order updates from the same peer will be stashed
     /// internally and their integration will be postponed until missing blocks arrive first.
+    /// Update struct is what we get from the remote peers
     pub fn apply_update(&mut self, update: Update) -> Result<(), UpdateError> {
         let (remaining, remaining_ds) = update.integrate(self)?;
         let mut retry = false;

@@ -485,6 +485,7 @@ impl ItemPtr {
         let this = self.deref_mut();
         let store = txn.store_mut();
         let encoding = store.offset_kind;
+        // If the offset is greater than zero, it indicates that the current block starts after an earlier block.
         if offset > 0 {
             // offset could be > 0 only in context of Update::integrate,
             // is such case offset kind in use always means Yjs-compatible offset (utf-16)
@@ -523,13 +524,16 @@ impl ItemPtr {
             TypePtr::Unknown => return true,
         };
 
+        // The block's left and right neighbors are identified.
         let left: Option<&Item> = this.left.as_deref();
         let right: Option<&Item> = this.right.as_deref();
 
+        // Checks if the right neighbor is either non-existent or has a left neighbor.
         let right_is_null_or_has_left = match right {
             None => true,
             Some(i) => i.left.is_some(),
         };
+        //  Checks if the left neighbor points to a different right neighbor than the current block.
         let left_has_other_right_than_self = match left {
             Some(i) => i.right != this.right,
             _ => false,
@@ -537,6 +541,7 @@ impl ItemPtr {
 
         if let Some(mut parent_ref) = parent {
             if (left.is_none() && right_is_null_or_has_left) || left_has_other_right_than_self {
+                // Conflict Resolution Logic
                 // set the first conflicting item
                 let mut o = if let Some(left) = left {
                     left.right
@@ -602,6 +607,7 @@ impl ItemPtr {
                 this.left = left;
             }
 
+            // Setting Parent Sub
             if this.parent_sub.is_none() {
                 if let Some(item) = this.left.as_deref() {
                     if item.parent_sub.is_some() {
@@ -702,6 +708,7 @@ impl ItemPtr {
                 }
             }
 
+            // Handling Content
             match &mut this.content {
                 ItemContent::Deleted(len) => {
                     txn.delete_set.insert(this.id, *len);

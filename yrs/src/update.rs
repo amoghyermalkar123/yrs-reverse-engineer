@@ -180,26 +180,36 @@ impl Update {
             client_block_ref_ids.sort();
 
             let mut current_client_id = client_block_ref_ids.pop().unwrap();
+            // current target is a list of Item structs from current/ local client
             let mut current_target = self.blocks.clients.get_mut(&current_client_id);
+            // topmost item
             let mut stack_head = if let Some(v) = current_target.as_mut() {
                 v.pop_front()
             } else {
                 None
             };
 
+            // get local state vector
             let mut local_sv = store.blocks.get_state_vector();
+            // create a sv to record missing blocks
             let mut missing_sv = StateVector::default();
+            // create a sv to record blocks that weren't integrated
             let mut remaining = UpdateBlocks::default();
+            // TODO: figure out
             let mut stack = Vec::new();
 
             while let Some(mut block) = stack_head {
                 if !block.is_skip() {
+                    // get clock of this remote block
                     let id = *block.id();
+                    // check if our local sv already contains this
                     if local_sv.contains(&id) {
                         let offset = local_sv.get(&id.client) as i32 - id.clock as i32;
+                        // get dependent client from which this missing block can be retrieved
                         if let Some(dep) = Self::missing(&block, &local_sv) {
                             stack.push(block);
-                            // get the struct reader that has the missing struct
+                            // chane the stack head and current_target to the missing block head
+                            // and missing block list
                             match self.blocks.clients.get_mut(&dep) {
                                 Some(block_refs) if !block_refs.is_empty() => {
                                     stack_head = block_refs.pop_front();
@@ -220,9 +230,11 @@ impl Update {
                             let offset = offset as u32;
                             let client = id.client;
                             local_sv.set_max(client, id.clock + block.len());
+                            // how is it decided whether to repair this or not?
                             if let BlockCarrier::Item(item) = &mut block {
                                 item.repair(store)?;
                             }
+                            // actual integration in the doc happens here
                             let should_delete = block.integrate(txn, offset);
                             let mut delete_ptr = if should_delete {
                                 let ptr = block.as_item_ptr();
@@ -251,6 +263,7 @@ impl Update {
                             store = txn.store_mut();
                         }
                     } else {
+                        // TODO: figure this out
                         // update from the same client is missing
                         let id = block.id();
                         missing_sv.set_min(id.client, id.clock - 1);
@@ -309,6 +322,10 @@ impl Update {
         Ok((remaining_blocks, remaining_ds))
     }
 
+    /// missing checks whether a BlockCarrier depends on information that is not yet
+    /// available in the local state (local_sv, a StateVector).
+    /// If it finds such a dependency, it returns the ClientID
+    /// from which the missing information is needed.
     fn missing(block: &BlockCarrier, local_sv: &StateVector) -> Option<ClientID> {
         if let BlockCarrier::Item(item) = block {
             if let Some(origin) = &item.origin {
@@ -540,6 +557,7 @@ impl Update {
     where
         T: IntoIterator<Item = Update>,
     {
+        // 1. Initialize the Result
         let mut result = Update::new();
         let update_blocks: Vec<UpdateBlocks> = block_stores
             .into_iter()
