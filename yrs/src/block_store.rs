@@ -299,8 +299,11 @@ impl BlockStore {
     ///
     /// Example: *for a block `A:1..=5` and id `A:3`, the returned slice will represent `A:1..=3`*.
     pub(crate) fn get_item_clean_end(&self, id: &ID) -> Option<ItemSlice> {
+        // TODO: the id we get here is the block we want to integrate
+        // but here we are looking up in our own local block store for this block?
         let ptr = self.get_item(id)?;
         let block_id = ptr.id();
+        // whats the meaning of this offset?
         let offset = id.clock - block_id.clock;
         Some(ItemSlice::new(ptr, 0, offset))
     }

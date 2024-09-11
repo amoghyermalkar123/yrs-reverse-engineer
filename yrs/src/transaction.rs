@@ -706,6 +706,7 @@ impl<'doc> TransactionMut<'doc> {
     /// internally and their integration will be postponed until missing blocks arrive first.
     /// Update struct is what we get from the remote peers
     pub fn apply_update(&mut self, update: Update) -> Result<(), UpdateError> {
+        println!("------------------");
         let (remaining, remaining_ds) = update.integrate(self)?;
         let mut retry = false;
         {

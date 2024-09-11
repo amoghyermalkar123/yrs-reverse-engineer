@@ -188,9 +188,11 @@ impl Update {
             } else {
                 None
             };
+            println!("head-{:?}", stack_head);
 
             // get local state vector
             let mut local_sv = store.blocks.get_state_vector();
+            println!("localsv-{:?}", local_sv);
             // create a sv to record missing blocks
             let mut missing_sv = StateVector::default();
             // create a sv to record blocks that weren't integrated
@@ -205,8 +207,10 @@ impl Update {
                     // check if our local sv already contains this
                     if local_sv.contains(&id) {
                         let offset = local_sv.get(&id.client) as i32 - id.clock as i32;
+                        println!("offset {:?}", offset);
                         // get dependent client from which this missing block can be retrieved
                         if let Some(dep) = Self::missing(&block, &local_sv) {
+                            println!("dep {:?}", dep);
                             stack.push(block);
                             // chane the stack head and current_target to the missing block head
                             // and missing block list
@@ -243,6 +247,11 @@ impl Update {
                                 None
                             };
                             store = txn.store_mut();
+                            // based on whether the block is supposed to be added or deleted,
+                            // we match on its carrier type, and perform the necessary action
+                            // in the case that the block is added/ integrated as an addition
+                            // we match on BlockCarrier::Item otherwise we add it to the GC
+                            // or skip in case the block needs to be skipped
                             match block {
                                 BlockCarrier::Item(item) => {
                                     if item.parent != TypePtr::Unknown {
@@ -300,6 +309,8 @@ impl Update {
                 }
             }
 
+            // if there were some blocks that could not be integrated due to any reason
+            // they are added to the pending state here
             if remaining.is_empty() {
                 None
             } else {
@@ -313,6 +324,9 @@ impl Update {
             }
         };
 
+        // same as above for the pending blocks that weren't integrated
+        // this is a pending delete block set which wasn't tombstoned/ delete integrated
+        // and is added to the pending delete set here
         let remaining_ds = txn.apply_delete(&self.delete_set).map(|ds| {
             let mut update = Update::new();
             update.delete_set = ds;
@@ -1143,10 +1157,12 @@ mod test {
 
     #[test]
     fn update_merge() {
+        // doc 1
         let d1 = Doc::with_client_id(1);
         let txt1 = d1.get_or_insert_text("test");
         let mut t1 = d1.transact_mut();
 
+        // doc 2
         let d2 = Doc::with_client_id(2);
         let txt2 = d2.get_or_insert_text("test");
         let mut t2 = d2.transact_mut();
@@ -1156,6 +1172,7 @@ mod test {
 
         txt2.insert(&mut t2, 0, "bbb");
         txt2.insert(&mut t2, 2, "bbb");
+        // txt2.get_string(&mut t2);
 
         let binary1 = t1.encode_update_v1();
         let binary2 = t2.encode_update_v1();
