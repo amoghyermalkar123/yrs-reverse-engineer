@@ -709,6 +709,7 @@ impl<'doc> TransactionMut<'doc> {
         println!("------------------");
         let (remaining, remaining_ds) = update.integrate(self)?;
         let mut retry = false;
+        // merge remaining updates
         {
             let store = self.store_mut();
             store.pending = if let Some(mut pending) = store.pending.take() {
@@ -732,6 +733,7 @@ impl<'doc> TransactionMut<'doc> {
                 remaining
             };
         }
+        // merge remaining deletes
         if let Some(pending) = self.store_mut().pending_ds.take() {
             let ds2 = self.apply_delete(&pending);
             let ds = match (remaining_ds, ds2) {
@@ -748,6 +750,7 @@ impl<'doc> TransactionMut<'doc> {
             self.store_mut().pending_ds = remaining_ds.map(|update| update.delete_set);
         }
 
+        // retry remaining updates/ deletes
         if retry {
             let store = self.store_mut();
             if let Some(pending) = store.pending.take() {

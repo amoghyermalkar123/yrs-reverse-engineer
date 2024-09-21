@@ -167,6 +167,9 @@ impl Update {
     /// pending update object is returned which contains blocks that couldn't be integrated, most
     /// likely because there were missing blocks that are used as a dependencies of other blocks
     /// contained in this update.
+    /// since yata is a CmRDT i.e. a Commutative Replicated Data Type, we only get operations
+    /// rather than the state from our remote peers. Hence we integrate one operation (block)
+    /// at a time
     pub(crate) fn integrate(
         mut self,
         txn: &mut TransactionMut,
@@ -206,6 +209,9 @@ impl Update {
                     let id = *block.id();
                     // check if our local sv already contains this
                     if local_sv.contains(&id) {
+                        // offset is the difference of clocks for a given client
+                        // between what the local state vector sees vs
+                        // what the remote peer's block sent us via its own state vector
                         let offset = local_sv.get(&id.client) as i32 - id.clock as i32;
                         println!("offset {:?}", offset);
                         // get dependent client from which this missing block can be retrieved
