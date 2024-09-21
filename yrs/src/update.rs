@@ -220,8 +220,7 @@ impl Update {
                             // push this block back to the stack because we will first
                             // integrate the dependent block
                             stack.push(block);
-                            // chane the stack head and current_target to the missing block head
-                            // and missing block list
+                            // change the block to be integrated as the dependent block
                             match self.blocks.clients.get_mut(&dep) {
                                 Some(block_refs) if !block_refs.is_empty() => {
                                     // instead first integrate the missing block
@@ -242,9 +241,12 @@ impl Update {
                         } else if offset == 0 || (offset as u32) < block.len() {
                             let offset = offset as u32;
                             let client = id.client;
+                            // order theory, the max of 2 clocks is accepted
+                            // we increment clock by current_clock + block length
                             local_sv.set_max(client, id.clock + block.len());
                             // how is it decided whether to repair this or not?
                             if let BlockCarrier::Item(item) = &mut block {
+                                // TODO: figure out what repair does
                                 item.repair(store)?;
                             }
                             // actual integration in the doc happens here
@@ -257,10 +259,8 @@ impl Update {
                             };
                             store = txn.store_mut();
                             // based on whether the block is supposed to be added or deleted,
-                            // we match on its carrier type, and perform the necessary action
-                            // in the case that the block is added/ integrated as an addition
-                            // we match on BlockCarrier::Item otherwise we add it to the GC
-                            // or skip in case the block needs to be skipped
+                            // we match on its carrier type, and add it's relevant type (block/ gc)
+                            // to the block store
                             match block {
                                 BlockCarrier::Item(item) => {
                                     if item.parent != TypePtr::Unknown {
@@ -345,7 +345,7 @@ impl Update {
         Ok((remaining_blocks, remaining_ds))
     }
 
-    /// missing checks whether a BlockCarrier depends on information that is not yet
+    /// missing checks whether a BlockCarrier depends on information (block) that is not yet
     /// available in the local state (local_sv, a StateVector).
     /// If it finds such a dependency, it returns the ClientID
     /// from which the missing information is needed.
@@ -943,6 +943,8 @@ impl BlockCarrier {
         }
     }
 
+    // integrate simply means creating a block with left and right neighbors
+    // which are present in the block store, having proper origins that don't cross
     pub fn integrate(&mut self, txn: &mut TransactionMut, offset: u32) -> bool {
         match self {
             BlockCarrier::Item(x) => ItemPtr::from(x).integrate(txn, offset),
