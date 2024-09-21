@@ -217,11 +217,14 @@ impl Update {
                         // get dependent client from which this missing block can be retrieved
                         if let Some(dep) = Self::missing(&block, &local_sv) {
                             println!("dep {:?}", dep);
+                            // push this block back to the stack because we will first
+                            // integrate the dependent block
                             stack.push(block);
                             // chane the stack head and current_target to the missing block head
                             // and missing block list
                             match self.blocks.clients.get_mut(&dep) {
                                 Some(block_refs) if !block_refs.is_empty() => {
+                                    // instead first integrate the missing block
                                     stack_head = block_refs.pop_front();
                                     current_target =
                                         self.blocks.clients.get_mut(&current_client_id);
