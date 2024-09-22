@@ -223,7 +223,8 @@ impl Update {
                             // change the block to be integrated as the dependent block
                             match self.blocks.clients.get_mut(&dep) {
                                 Some(block_refs) if !block_refs.is_empty() => {
-                                    // instead first integrate the missing block
+                                    // TODO: if we get the dependent client id
+                                    // why integrate the first block in that stack?
                                     stack_head = block_refs.pop_front();
                                     current_target =
                                         self.blocks.clients.get_mut(&current_client_id);
@@ -386,6 +387,7 @@ impl Update {
                 _ => {}
             }
 
+            // TODO: figure out moved ranges
             match &item.content {
                 ItemContent::Move(m) => {
                     if let Some(start) = m.start.id() {
