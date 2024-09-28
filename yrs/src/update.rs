@@ -225,12 +225,18 @@ impl Update {
                                 Some(block_refs) if !block_refs.is_empty() => {
                                     // TODO: if we get the dependent client id
                                     // why integrate the first block in that stack?
+                                    // ans: because we iterate the blocks list for the dependent
+                                    // client and skip the ones already integrated
                                     stack_head = block_refs.pop_front();
+                                    // make the integration target the block list of the dependent
+                                    // client we found above from the missing() function call
                                     current_target =
                                         self.blocks.clients.get_mut(&current_client_id);
                                     continue;
                                 }
                                 _ => {
+                                    // since we didnt find the block list for the dependent client
+                                    // for the current integration block, we say that
                                     // This update message causally depends on another update message that doesn't exist yet
                                     missing_sv.set_min(dep, local_sv.get(&dep));
                                     Self::return_stack(stack, &mut self.blocks, &mut remaining);
