@@ -714,6 +714,9 @@ impl<'doc> TransactionMut<'doc> {
             let store = self.store_mut();
             store.pending = if let Some(mut pending) = store.pending.take() {
                 // check if we can apply something
+                // this is checking if any block in the pending state happened
+                // before the max clock observed by the client of said block
+                // then mark the try variable as true and retry pending stack
                 for (client, &clock) in pending.missing.iter() {
                     if clock < store.blocks.get_clock(client) {
                         retry = true;
