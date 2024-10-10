@@ -549,6 +549,9 @@ impl ItemPtr {
                 // Conflict Resolution Logic
                 // set the first conflicting item
                 let mut o = if let Some(left) = left {
+                    // S = a,b,y,c
+                    // then our block -> axc
+                    // then set first conflicting element as b
                     left.right
                 } else if let Some(sub) = &this.parent_sub {
                     let mut o = parent_ref.map.get(sub).cloned();
@@ -603,12 +606,16 @@ impl ItemPtr {
                                     conflicting_items.clear();
                                 }
                             } else {
+                                // this case will never happen
                                 break;
                             }
                         } else {
+                            // this case will never happen
                             break;
                         }
                     }
+                    // iterate to next conflicting items, remember: we're iterating left->right in
+                    // conflicting items
                     o = item.right.clone();
                 }
                 this.left = left;
