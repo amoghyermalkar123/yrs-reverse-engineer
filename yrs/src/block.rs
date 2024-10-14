@@ -481,11 +481,13 @@ impl ItemPtr {
     /// Integrates current block into block store.
     /// If it returns true, it means that the block should be deleted after being added to a block store.
     pub(crate) fn integrate(&mut self, txn: &mut TransactionMut, offset: u32) -> bool {
-        println!("starting integration----");
         let self_ptr = self.clone();
         let this = self.deref_mut();
         let store = txn.store_mut();
         let encoding = store.offset_kind;
+        println!("");
+        println!("=== Block Wise Integration Starts ===");
+        println!("block -{:?}", this);
         // If the offset is greater than zero, it indicates that the current block starts after an earlier block.
         if offset > 0 {
             // offset could be > 0 only in context of Update::integrate,
@@ -502,7 +504,6 @@ impl ItemPtr {
                 .unwrap();
             this.len -= offset;
         }
-        println!("block-{:?}: content-{:?}", this.id(), this.content);
 
         let parent = match &this.parent {
             TypePtr::Branch(branch) => Some(*branch),
@@ -530,8 +531,6 @@ impl ItemPtr {
         let left: Option<&Item> = this.left.as_deref();
         let right: Option<&Item> = this.right.as_deref();
 
-        println!("before integ left-{:?}", left);
-        println!("before integ right-{:?}", right);
         // Checks if the right neighbor is either non-existent or has a left neighbor.
         let right_is_null_or_has_left = match right {
             None => true,
@@ -566,8 +565,6 @@ impl ItemPtr {
                 } else {
                     parent_ref.start
                 };
-
-                println!("first conflict item-{:?}", o);
 
                 let mut left = this.left.clone();
                 let mut conflicting_items = HashSet::new();
@@ -722,6 +719,7 @@ impl ItemPtr {
                 }
             }
 
+            println!("=== Block Wise Integration Ends===");
             // Handling Content
             match &mut this.content {
                 ItemContent::Deleted(len) => {
@@ -779,8 +777,6 @@ impl ItemPtr {
             } else {
                 false
             };
-            println!("after integ left-{:?}", this.left);
-            println!("after integ right-{:?}", this.right);
             if parent_deleted || (this.parent_sub.is_some() && this.right.is_some()) {
                 // delete if parent is deleted or if this is not the current attribute value of parent
                 true

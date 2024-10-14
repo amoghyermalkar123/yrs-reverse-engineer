@@ -706,65 +706,7 @@ impl<'doc> TransactionMut<'doc> {
     /// internally and their integration will be postponed until missing blocks arrive first.
     /// Update struct is what we get from the remote peers
     pub fn apply_update(&mut self, update: Update) -> Result<(), UpdateError> {
-        println!("------------------");
-        let (remaining, remaining_ds) = update.integrate(self)?;
-        let mut retry = false;
-        // merge remaining updates
-        {
-            let store = self.store_mut();
-            store.pending = if let Some(mut pending) = store.pending.take() {
-                // check if we can apply something
-                // this is checking if any block in the pending state happened
-                // before the max clock observed by the client of said block
-                // then mark the try variable as true and retry pending stack
-                for (client, &clock) in pending.missing.iter() {
-                    if clock < store.blocks.get_clock(client) {
-                        retry = true;
-                        break;
-                    }
-                }
-
-                if let Some(remaining) = remaining {
-                    // merge restStructs into store.pending
-                    for (&client, &clock) in remaining.missing.iter() {
-                        pending.missing.set_min(client, clock);
-                    }
-                    pending.update = Update::merge_updates(vec![pending.update, remaining.update]);
-                }
-                Some(pending)
-            } else {
-                remaining
-            };
-        }
-        // merge remaining deletes
-        if let Some(pending) = self.store_mut().pending_ds.take() {
-            let ds2 = self.apply_delete(&pending);
-            let ds = match (remaining_ds, ds2) {
-                (Some(mut a), Some(b)) => {
-                    a.delete_set.merge(b);
-                    Some(a.delete_set)
-                }
-                (Some(x), _) => Some(x.delete_set),
-                (_, Some(x)) => Some(x),
-                _ => None,
-            };
-            self.store_mut().pending_ds = ds;
-        } else {
-            self.store_mut().pending_ds = remaining_ds.map(|update| update.delete_set);
-        }
-
-        // retry remaining updates/ deletes
-        if retry {
-            let store = self.store_mut();
-            if let Some(pending) = store.pending.take() {
-                let ds = store.pending_ds.take().unwrap_or_default();
-                let mut ds_update = Update::new();
-                ds_update.delete_set = ds;
-                self.apply_update(pending.update)?;
-                self.apply_update(ds_update)?;
-            }
-        }
-
+        update.integrate(self)?;
         Ok(())
     }
 

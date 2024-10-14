@@ -177,6 +177,7 @@ impl Update {
         let remaining_blocks = if self.blocks.is_empty() {
             None
         } else {
+            println!("------------Main Integratiuon Loop Starts-----------------");
             let mut store = txn.store_mut();
             let mut client_block_ref_ids: Vec<ClientID> =
                 self.blocks.clients.keys().cloned().collect();
@@ -191,11 +192,11 @@ impl Update {
             } else {
                 None
             };
-            println!("head-{:?}", stack_head);
 
             // get local state vector
             let mut local_sv = store.blocks.get_state_vector();
             println!("localsv-{:?}", local_sv);
+            println!("");
             // create a sv to record missing blocks
             let mut missing_sv = StateVector::default();
             // create a sv to record blocks that weren't integrated
@@ -213,7 +214,7 @@ impl Update {
                         // between what the local state vector sees vs
                         // what the remote peer's block sent us via its own state vector
                         let offset = local_sv.get(&id.client) as i32 - id.clock as i32;
-                        println!("offset {:?}", offset);
+                        println!("head-{:?}, offset {:?}", block, offset);
                         // get dependent client from which this missing block can be retrieved
                         if let Some(dep) = Self::missing(&block, &local_sv) {
                             println!("dep {:?}", dep);
@@ -340,6 +341,7 @@ impl Update {
             }
         };
 
+        println!("------------Main Integratiuon Loop Ends-----------------");
         // same as above for the pending blocks that weren't integrated
         // this is a pending delete block set which wasn't tombstoned/ delete integrated
         // and is added to the pending delete set here
@@ -1186,11 +1188,13 @@ mod test {
         let txt2 = d2.get_or_insert_text("test");
         let mut t2 = d2.transact_mut();
 
-        txt1.insert(&mut t1, 0, "aaa");
-        txt1.insert(&mut t1, 0, "aaa");
+        // TODO: figure out how we get left and right neighbors from remote peers
+        //
+        txt1.insert(&mut t1, 0, "a");
+        txt1.insert(&mut t1, 0, "b");
 
-        txt2.insert(&mut t2, 0, "bbb");
-        txt2.insert(&mut t2, 2, "bbb");
+        txt2.insert(&mut t2, 0, "c");
+        txt2.insert(&mut t2, 2, "d");
         // txt2.get_string(&mut t2);
 
         let binary1 = t1.encode_update_v1();
